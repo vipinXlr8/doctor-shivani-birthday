@@ -53,9 +53,19 @@ function App() {
   const [songsPaused, setSongsPaused] = useState(false);
   const [candlesLit, setCandlesLit] = useState(true);
   const [holding, setHolding] = useState(false);
+  const [celebration, setCelebration] = useState(false);
   const blowTimer = useRef(null);
+  const celebrationTimer = useRef(null);
   const audioRef = useRef(null);
   const popupOpen = letterOpen || crushOpen || hurtOpen || restartOpen;
+
+  useEffect(
+    () => () => {
+      window.clearTimeout(blowTimer.current);
+      window.clearTimeout(celebrationTimer.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!letterOpen && !crushOpen && !hurtOpen && !restartOpen) return undefined;
@@ -106,6 +116,9 @@ function App() {
     blowTimer.current = window.setTimeout(() => {
       setCandlesLit(false);
       setHolding(false);
+      setCelebration(true);
+      window.clearTimeout(celebrationTimer.current);
+      celebrationTimer.current = window.setTimeout(() => setCelebration(false), 2400);
     }, 1100);
   };
   const stopBlowing = () => {
@@ -162,6 +175,25 @@ function App() {
                 </span>
               ))}
             </div>
+            {celebration && (
+              <div className="celebration-particles" aria-hidden="true">
+                {Array.from({ length: 36 }, (_, index) => {
+                  const angle = Math.PI + (index / 35) * Math.PI;
+                  const distance = 48 + ((index * 37) % 96);
+                  return (
+                    <i
+                      key={index}
+                      style={{
+                        "--x": `${Math.cos(angle) * distance}px`,
+                        "--y": `${Math.sin(angle) * distance - 26}px`,
+                        "--delay": `${(index % 8) * 18}ms`,
+                        "--hue": `${(index * 47) % 360}`,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            )}
             <button
               className={`blow-target ${holding ? "is-holding" : ""}`}
               onPointerDown={startBlowing}
