@@ -19,3 +19,12 @@
   14% { opacity: 1; transform: translate3d(0,-8px,0) rotate(70deg) scale(1); }
   100% { opacity: 0; transform: translate3d(var(--x),var(--y),0) rotate(640deg) scale(.2); }
 }
+.parwana-card { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.parwana-card .close-button { align-self: flex-end; flex: 0 0 auto; margin: -16px -12px -32px auto; z-index: 1; }
+.parwana-card h2 { margin: 8px 0 8px; }
+.parwana-image { display: block; width: min(100%, 270px); max-height: 42svh; object-fit: contain; border-radius: 8px; }
+.parwana-message { margin: 8px auto 2px; }
+.apple-music-player { display: block; width: 100%; min-height: 175px; border: 0; border-radius: 12px; }
+.song-window { cursor: grab; touch-action: pan-y; -webkit-user-select: none; user-select: none; }
+.song-window.is-dragging { cursor: grabbing; }
+.song-window.is-dragging .song-track { transition: none; }

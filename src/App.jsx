@@ -47,17 +47,21 @@ function App() {
   const [hurtOpen, setHurtOpen] = useState(false);
   const [hurtPhoto, setHurtPhoto] = useState(0);
   const [restartOpen, setRestartOpen] = useState(false);
+  const [parwanaOpen, setParwanaOpen] = useState(false);
   const [restartPhoto, setRestartPhoto] = useState(0);
   const [reminderVisible, setReminderVisible] = useState(true);
   const [songOffset, setSongOffset] = useState(0);
   const [songsPaused, setSongsPaused] = useState(false);
+  const [songsDragging, setSongsDragging] = useState(false);
+  const songDragRef = useRef(null);
+  const suppressSongClickRef = useRef(false);
   const [candlesLit, setCandlesLit] = useState(true);
   const [holding, setHolding] = useState(false);
   const [celebration, setCelebration] = useState(false);
   const blowTimer = useRef(null);
   const celebrationTimer = useRef(null);
   const audioRef = useRef(null);
-  const popupOpen = letterOpen || crushOpen || hurtOpen || restartOpen;
+  const popupOpen = letterOpen || crushOpen || hurtOpen || restartOpen || parwanaOpen;
 
   useEffect(
     () => () => {
@@ -68,13 +72,14 @@ function App() {
   );
 
   useEffect(() => {
-    if (!letterOpen && !crushOpen && !hurtOpen && !restartOpen) return undefined;
+    if (!letterOpen && !crushOpen && !hurtOpen && !restartOpen && !parwanaOpen) return undefined;
     const closeOnEscape = (event) => {
       if (event.key === "Escape") {
         setLetterOpen(false);
         setCrushOpen(false);
         setHurtOpen(false);
         setRestartOpen(false);
+        setParwanaOpen(false);
       }
     };
     document.addEventListener("keydown", closeOnEscape);
@@ -83,16 +88,56 @@ function App() {
       document.removeEventListener("keydown", closeOnEscape);
       document.body.style.overflow = "";
     };
-  }, [letterOpen, crushOpen, hurtOpen, restartOpen]);
+  }, [letterOpen, crushOpen, hurtOpen, restartOpen, parwanaOpen]);
 
   useEffect(() => {
-    if (songsPaused) return undefined;
+    if (songsPaused || songsDragging) return undefined;
     const interval = window.setInterval(
       () => setSongOffset((offset) => (offset + 1) % songs.length),
       2800,
     );
     return () => window.clearInterval(interval);
-  }, [songsPaused]);
+  }, [songsPaused, songsDragging]);
+
+  const startSongDrag = (event) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    songDragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startOffset: songOffset,
+      moved: false,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setSongsDragging(true);
+  };
+
+  const moveSongDrag = (event) => {
+    const drag = songDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const distance = event.clientX - drag.startX;
+    if (Math.abs(distance) > 6) drag.moved = true;
+    if (drag.moved) {
+      setSongOffset(Math.max(0, Math.min(songs.length - 1, drag.startOffset - distance / 220)));
+    }
+  };
+
+  const endSongDrag = (event) => {
+    const drag = songDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (drag.moved) {
+      suppressSongClickRef.current = true;
+      setSongOffset(Math.max(0, Math.min(songs.length - 1, Math.round(songOffset))));
+      window.setTimeout(() => { suppressSongClickRef.current = false; }, 0);
+    }
+    songDragRef.current = null;
+    setSongsDragging(false);
+  };
+
+  const handleSongClick = (event) => {
+    if (!suppressSongClickRef.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+  };
 
   const toggleMusic = async () => {
     const audio = audioRef.current;
@@ -250,6 +295,14 @@ function App() {
             aria-expanded={restartOpen}
           >
             Can we restart? <span>↗</span>
+          </button>
+          <button
+            className="crush-link parwana-link"
+            onClick={() => setParwanaOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={parwanaOpen}
+          >
+            Parwana and Shama <span>↗</span>
           </button>
         </div>
       </section>
@@ -464,6 +517,48 @@ function App() {
           </article>
         </div>
       )}
+      {parwanaOpen && (
+        <div
+          className="letter-overlay crush-overlay"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setParwanaOpen(false);
+          }}
+        >
+          <article
+            className="crush-card parwana-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="parwana-title"
+          >
+            <button
+              className="close-button"
+              onClick={() => setParwanaOpen(false)}
+              aria-label="Close"
+            >
+              <X size={20} />
+            </button>
+            <h2 id="parwana-title">Parwana and Shama</h2>
+            <img
+              className="parwana-image"
+              src={`${import.meta.env.BASE_URL}parwana-shama.jpg`}
+              alt="A moth drawn toward the flame of a candle"
+            />
+            <p className="crush-caption parwana-message">
+              I am your parwana; you will be my shama forever.
+            </p>
+            <iframe
+              width="560"
+              height="315"
+              src="https://www.youtube.com/embed/s4fYA_wkta8?si=YD4TkR-7e_dIVK4_"
+              title="YouTube video player"
+              frameborder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              referrerpolicy="strict-origin-when-cross-origin"
+              allowfullscreen
+            ></iframe>
+          </article>
+        </div>
+      )}
       <footer
         className="songs-footer"
         onMouseEnter={() => setSongsPaused(true)}
@@ -474,7 +569,15 @@ function App() {
         }}
       >
         <h2>Songs dedicated to you</h2>
-        <div className="song-window" aria-label="Song dedications">
+        <div
+          className={`song-window ${songsDragging ? "is-dragging" : ""}`}
+          aria-label="Song dedications"
+          onPointerDown={startSongDrag}
+          onPointerMove={moveSongDrag}
+          onPointerUp={endSongDrag}
+          onPointerCancel={endSongDrag}
+          onClickCapture={handleSongClick}
+        >
           <div className="song-track" style={{ transform: `translateX(-${songOffset * 220}px)` }}>
             {[...songs, ...songs].map((song, index) => (
               <a
